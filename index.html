@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunar Simulator Pro - Ultimate Edition</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        /* HUD - Capacete de Astronauta */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 10;
+            border: 20px solid rgba(15, 25, 35, 0.4);
+            box-sizing: border-box;
+            display: none;
+        }
+        #visor-reflexo {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 15%, rgba(0, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 70%);
+        }
+        .telemetria {
+            position: absolute;
+            color: #00e5ff;
+            text-shadow: 0 0 6px rgba(0,229,255,0.6);
+            font-size: 13px;
+            padding: 15px;
+            background: rgba(2, 8, 16, 0.75);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            border-radius: 4px;
+            backdrop-filter: blur(4px);
+        }
+        #telemetria-esquerda { top: 30px; left: 30px; }
+        #telemetria-direita { top: 30px; right: 30px; text-align: right; }
+        
+        .barra-container {
+            width: 150px; height: 10px;
+            background: rgba(255,0,0,0.2);
+            border: 1px solid #ff3333;
+            display: inline-block; margin-left: 10px;
+            vertical-align: middle;
+        }
+        #barra-oxigenio {
+            width: 100%; height: 100%;
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff;
+            transition: width 0.1s linear;
+        }
+
+        /* Indicador de interação centralizado */
+        #prompt-interacao {
+            position: absolute;
+            top: 55%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffcc00;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 15px;
+            border: 1px solid #ffcc00;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            z-index: 12;
+            text-shadow: 0 0 4px #ffcc00;
+        }
+
+        /* Telas de Menus e Interfaces Globais */
+        .tela-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 30; backdrop-filter: blur(8px);
+            color: white; text-align: center;
+            box-sizing: border-box;
+        }
+
+        /* 1. Tela de Start Detalhada */
+        #tela-start {
+            background: linear-gradient(135deg, rgba(2, 8, 18, 0.98) 0%, rgba(5, 20, 40, 0.95) 100%);
+            border: 4px double #00e5ff;
+        }
+        .btn-menu {
+            background: transparent;
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-family: inherit;
+            cursor: pointer;
+            margin-top: 25px;
+            box-shadow: 0 0 15px rgba(0,229,255,0.2);
+            transition: all 0.3s;
+        }
+        .btn-menu:hover {
+            background: #00e5ff;
+            color: #000;
+            box-shadow: 0 0 25px #00e5ff;
+        }
+
+        /* 2. Menu de Pause (ESC) */
+        #tela-pause {
+            background: rgba(2, 6, 12, 0.85);
+            display: none;
+        }
+
+        /* 3. Tela de Game Over */
+        #tela-gameover {
+            background: rgba(30, 0, 0, 0.95);
+            border: 4px double #ff3333;
+            display: none;
+        }
+        #tela-gameover h1 {
+            color: #ff3333;
+            text-shadow: 0 0 15px #ff3333;
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        h1 { font-size: 38px; letter-spacing: 5px; margin-bottom: 10px; font-weight: 400; }
+        .subtitulo { font-size: 14px; color: #ffcc00; margin-bottom: 30px; letter-spacing: 2px; }
+        .painel-ajuda {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 25px; border-radius: 4px;
+            max-width: 500px; text-align: left; line-height: 1.8; font-size: 12px;
+        }
+
+        #mira {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 6px; height: 6px;
+            border: 1px solid rgba(0, 229, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none; z-index: 10;
+            display: none;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); opacity: 0.9; }
+            to { transform: scale(1.05); opacity: 1; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+</head>
+<body>
+
+    <div id="tela-start" class="tela-overlay">
+        <h1 style="color: #00e5ff; text-shadow: 0 0 12px #00e5ff;">LUNAR SIMULATOR PRO</h1>
+        <div class="subtitulo">PROGRAMA DE RECONHECIMENTO EXTRAVEICULAR (EVA)</div>
+        
+        <div class="painel-ajuda">
+            <span style="color: #00e5ff; font-weight: bold;">[MANUAL DE SISTEMAS DO TRAJE]</span><br>
+            • <b>W, A, S, D</b> : Controle de propulsão e caminhada<br>
+            • <b>ESPAÇO</b> : Impulso vertical em baixa gravidade (1.62 m/s²)<br>
+            • <b>TECLA L</b> : Ligar/Desligar lanterna principal do capacete<br>
+            • <b>TECLA E</b> : Coletar fragmentos e reabastecer suporte de vida<br><br>
+            <span style="color: #ffcc00; font-weight: bold;">[DIRETRIZES DA MISSÃO]</span><br>
+            Aproxime-se dos cristais amarelos e pressione <b>[E]</b> para coletar amostras geológicas. Monitore constantemente os níveis de O2. Caso o oxigênio chegue a zero, os sistemas biológicos falharão. Recolha os cilindros criogênicos azuis espalhados para injetar oxigênio extra.
+        </div>
+        <button class="btn-menu" id="btn-iniciar">INICIALIZAR MISSÃO</button>
+    </div>
+
+    <div id="tela-pause" class="tela-overlay">
+        <h1 style="color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5);">SISTEMA PAUSADO</h1>
+        <div class="subtitulo" style="color: #00e5ff;">TRAJE EM MODO DE ESPERA</div>
+        <button class="btn-menu" id="btn-retomar">RETOMAR OPERAÇÕES</button>
+    </div>
+
+    <div id="tela-gameover" class="tela-overlay">
+        <h1>SINAIS VITAIS PERDIDOS</h1>
+        <div class="subtitulo">SISTEMA DE OXIGÊNIO ESGOTADO - FALHA CRÍTICA DO TRAJE</div>
+        <div class="painel-ajuda" style="text-align: center; border-color: #ff3333;">
+            Amostras coletadas nesta sessão: <span id="resultado-amostras" style="color: #ffcc00; font-weight: bold; font-size: 16px;">0</span> / 10
+        </div>
+        <button class="btn-menu" id="btn-reiniciar" style="border-color:#ff3333; color:#ff3333; box-shadow: 0 0 15px rgba(255,51,51,0.2);">INICIAR NOVO POUSO</button>
+    </div>
+
+    <div id="hud">
+        <div id="visor-reflexo"></div>
+        <div id="telemetria-esquerda" class="telemetria">
+            <div>SISTEMA: EVAMOD-v4.8</div>
+            <div>X: <span id="pos-x">0.0</span> | Z: <span id="pos-z">0.0</span></div>
+            <div>ALTITUDE: <span id="pos-y">0.0</span> m</div>
+            <div>LANTERNA: <span id="status-lanterna" style="color:#ff3333;">DESLIGADA</span> [L]</div>
+        </div>
+        <div id="telemetria-direita" class="telemetria">
+            <div>AMOSTRAS: <span id="contador-amostras" style="color:#ffcc00; font-weight:bold;">0</span> / 10</div>
+            <div>
+                OXI: <div class="barra-container"><div id="barra-oxigenio"></div></div>
+            </div>
+            <div id="alerta-oxi" style="color:#ff3333; display:none; margin-top:5px; font-weight: bold;">AVISO: OXI CRÍTICO</div>
+        </div>
+    </div>
+
+    <div id="prompt-interacao">Pressione [E] para coletar</div>
+    <div id="mira"></div>
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- Motores Principais ---
+        const container = document.getElementById('canvas-container');
+        const cena = new THREE.Scene();
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 6000);
+
+        const renderizador = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderizador.setSize(window.innerWidth, window.innerHeight);
+        renderizador.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderizador.shadowMap.enabled = true;
+        renderizador.shadowMap.type = THREE.PCFSoftShadowMap; 
+        renderizador.toneMapping = THREE.ACESFilmicToneMapping; 
+        renderizador.toneMappingExposure = 1.2; 
+        container.appendChild(renderizador.domElement);
+
+        // --- Variáveis de Estado e Gameplay ---
+        let oxigenio = 100;
+        let amostrasColetadas = 0;
+        let lanternaLigada = false;
+        let jogoAtivo = false;
+        let vivo = true;
+
+        let listaAmostras = [];
+        let listaTanques = [];
+        const listaPegadas = [];
+
+        // --- Controles ---
+        const controles = new THREE.PointerLockControls(camera, document.body);
+        
+        const telaStart = document.getElementById('tela-start');
+        const telaPause = document.getElementById('tela-pause');
+        const telaGameOver = document.getElementById('tela-gameover');
+        const hud = document.getElementById('hud');
+        const mira = document.getElementById('mira');
+        const promptInteracao = document.getElementById('prompt-interacao');
+
+        // Eventos dos botões de interface
+        document.getElementById('btn-iniciar').addEventListener('click', () => { controles.lock(); jogoAtivo = true; });
+        document.getElementById('btn-retomar').addEventListener('click', () => { controles.lock(); });
+        document.getElementById('btn-reiniciar').addEventListener('click', () => { resetarJogo(); });
+
+        controles.addEventListener('lock', () => {
+            if(!vivo) return;
+            telaStart.style.display = 'none';
+            telaPause.style.display = 'none';
+            telaGameOver.style.display = 'none';
+            hud.style.display = 'block';
+            mira.style.display = 'block';
+        });
+
+        controles.addEventListener('unlock', () => {
+            promptInteracao.style.display = 'none';
+            if (vivo && jogoAtivo) {
+                telaPause.style.display = 'flex';
+                hud.style.display = 'none';
+                mira.style.display = 'none';
+            }
+        });
+
+        let moverFrente = false, moverTras = false, moverEsquerda = false, moverDireita = false;
+        let noChao = true;
+        let velocidadeY = 0; 
+        const GRAVIDADE = 0.0035;   
+        const FORCA_SALTO = 0.15;   
+        const VELOCIDADE_ANDAR = 0.18;
+
+        // --- Iluminação Espacial Original ---
+        const posicaoSolX = 800, posicaoSolY = 160, posicaoSolZ = -300;
+        const INTENSIDADE_SOL_BASE = 2.8;
+
+        const luzSol = new THREE.DirectionalLight(0xfffaed, INTENSIDADE_SOL_BASE);
+        luzSol.position.set(posicaoSolX, posicaoSolY, posicaoSolZ); 
+        luzSol.castShadow = true;
+        luzSol.shadow.mapSize.width = 4096;
+        luzSol.shadow.mapSize.height = 4096;
+        luzSol.shadow.camera.near = 10;
+        luzSol.shadow.camera.far = 2000;
+        const d = 500;
+        luzSol.shadow.camera.left = -d; luzSol.shadow.camera.right = d;
+        luzSol.shadow.camera.top = d; luzSol.shadow.camera.bottom = -d;
+        luzSol.shadow.bias = -0.0001;
+        luzSol.shadow.radius = 2.0;
+        cena.add(luzSol);
+
+        const luzTerra = new THREE.AmbientLight(0x0e2b66, 0.2); 
+        cena.add(luzTerra);
+
+        // --- LANTERNA DO CAPACETE ---
+        const lanterna = new THREE.SpotLight(0xffffff, 0, 60, Math.PI / 5, 0.5, 1);
+        lanterna.castShadow = true;
+        camera.add(lanterna);
+        lanterna.position.set(0, 0, 0);
+        lanterna.target = new THREE.Object3D();
+        camera.add(lanterna.target);
+        lanterna.target.position.set(0, 0, -1);
+        cena.add(camera);
+
+        // Interação por Teclado
+        let teclaEPressionada = false;
+        document.addEventListener('keydown', (e) => {
+            const tecla = e.key.toLowerCase();
+            if(!vivo) return;
+            if(tecla === 'w' || e.code === 'KeyW') moverFrente = true;
+            if(tecla === 's' || e.code === 'KeyS') moverTras = true;
+            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = true;
+            if(tecla === 'd' || e.code === 'KeyD') moverDireita = true;
+            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = true;
+            if(tecla === 'l' || e.code === 'KeyL') {
+                lanternaLigada = !lanternaLigada;
+                lanterna.intensity = lanternaLigada ? 4.5 : 0;
+                document.getElementById('status-lanterna').innerText = lanternaLigada ? "LIGADA" : "DESLIGADA";
+                document.getElementById('status-lanterna').style.color = lanternaLigada ? "#00e5ff" : "#ff3333";
+            }
+            if((e.code === 'Space' || e.key === ' ') && noChao) {
+                velocidadeY = FORCA_SALTO;
+                noChao = false;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const tecla = e.key.toLowerCase();
+            if(tecla === 'w' || e.code === 'KeyW') moverFrente = false;
+            if(tecla === 's' || e.code === 'KeyS') moverTras = false;
+            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = false;
+            if(tecla === 'd' || e.code === 'KeyD') moverDireita = false;
+            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = false;
+        });
+
+        // --- SOL ---
+        const solGrupo = new THREE.Group();
+        solGrupo.position.set(posicaoSolX * 1.5, posicaoSolY * 1.5, posicaoSolZ * 1.5);
+
+        function criarTexturaAuraVolumetrica() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            let gradiente = ctx.createRadialGradient(256, 256, 5, 256, 256, 256);
+            gradiente.addColorStop(0, 'rgba(255, 255, 230, 1)');     
+            gradiente.addColorStop(0.1, 'rgba(255, 235, 120, 0.95)'); 
+            gradiente.addColorStop(0.25, 'rgba(255, 190, 40, 0.6)');  
+            gradiente.addColorStop(0.5, 'rgba(255, 110, 10, 0.18)');  
+            gradiente.addColorStop(1, 'rgba(255, 50, 0, 0)');         
+            ctx.fillStyle = gradiente;
+            ctx.fillRect(0, 0, 512, 512);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const spriteAura = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: criarTexturaAuraVolumetrica(), color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending 
+        }));
+        spriteAura.scale.set(450, 450, 1); 
+        solGrupo.add(spriteAura);
+        cena.add(solGrupo);
+
+        // --- Céu Estrelado ---
+        const numEstrelas = 3500;
+        const geometriaEstrelas = new THREE.BufferGeometry();
+        const posicoesEstrelas = new Float32Array(numEstrelas * 3);
+        for(let i = 0; i < numEstrelas * 3; i += 3) {
+            const u = Math.random(); const v = Math.random();
+            const theta = u * 2.0 * Math.PI; const phi = Math.acos(2.0 * v - 1.0);
+            const r = 3500; 
+            posicoesEstrelas[i] = r * Math.sin(phi) * Math.cos(theta);
+            posicoesEstrelas[i+1] = r * Math.sin(phi) * Math.sin(theta);
+            posicoesEstrelas[i+2] = r * Math.cos(phi);
+        }
+        geometriaEstrelas.setAttribute('position', new THREE.BufferAttribute(posicoesEstrelas, 3));
+        cena.add(new THREE.Points(geometriaEstrelas, new THREE.PointsMaterial({ color: 0xffffff, size: 1.3, sizeAttenuation: false })));
+
+        // --- Terra ---
+        function criarTexturaTerraMaisAgua() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048; canvas.height = 1024; const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#061745'; ctx.fillRect(0, 0, 2048, 1024);
+            const dadosImagem = ctx.getImageData(0, 0, 2048, 1024);
+            const pixels = dadosImagem.data;
+
+            function noiseSuave(x, y) {
+                let total = 0;
+                total += Math.sin(x * 3.0) * Math.cos(y * 2.5) * 0.45;
+                total += Math.sin(x * 7.5) * Math.sin(y * 6.0) * 0.25;
+                total += Math.cos(x * 16.0) * Math.cos(y * 14.0) * 0.15;
+                return (total + 1) / 2; 
+            }
+            for (let y = 0; y < 1024; y++) {
+                for (let x = 0; x < 2048; x++) {
+                    let nx = (x / 2048) * Math.PI * 6; let ny = (y / 1024) * Math.PI * 3;
+                    let valorNoise = noiseSuave(nx, ny);
+                    let inf = 0.05; 
+                    if (x > 350 && x < 650) inf += 0.12;  
+                    if (x > 1200 && x < 1650) inf += 0.14; 
+                    if (valorNoise + inf > 0.76) {
+                        let idx = (y * 2048 + x) * 4;
+                        pixels[idx] = 20; pixels[idx+1] = 130 + Math.floor(valorNoise * 60); pixels[idx+2] = 25; 
+                    }
+                }
+            }
+            ctx.putImageData(dadosImagem, 0, 0);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const terra = new THREE.Mesh(new THREE.SphereGeometry(240, 64, 64), new THREE.MeshStandardMaterial({ 
+            map: criarTexturaTerraMaisAgua(), roughness: 0.55, metalness: 0.12
+        }));
+        terra.position.set(-360, 70, -560); 
+        terra.rotation.z = 0.45; 
+        cena.add(terra);
+
+        // --- Textura do Solo Lunar Ultra-Realista ---
+        function criarTexturaRegolitoComplexa() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048; canvas.height = 2048; const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#444444'; ctx.fillRect(0, 0, 2048, 2048);
+            
+            for (let i = 0; i < 800000; i++) {
+                let x = Math.random() * 2048; let y = Math.random() * 2048;
+                let tamanho = Math.random() * 1.5; let lum = Math.random() * 40 - 20;
+                ctx.fillStyle = `rgba(${68+lum}, ${68+lum}, ${68+lum}, 0.85)`;
+                ctx.fillRect(x, y, tamanho, tamanho);
+            }
+            for (let i = 0; i < 8000; i++) {
+                let x = Math.random() * 2048; let y = Math.random() * 2048;
+                let tamanho = 2 + Math.random() * 6; let tomEscuro = Math.random() * 30;
+                ctx.fillStyle = `rgba(${30+tomEscuro}, ${30+tomEscuro}, ${30+tomEscuro}, 0.4)`;
+                ctx.beginPath(); ctx.arc(x, y, tamanho, 0, Math.PI * 2); ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+        const texturaSolo = criarTexturaRegolitoComplexa();
+        texturaSolo.wrapS = THREE.RepeatWrapping; texturaSolo.wrapT = THREE.RepeatWrapping;
+        texturaSolo.repeat.set(30, 30); 
+
+        // --- Terreno Lunar com Crateras ---
+        const tamanhoSolo = 1000;
+        const geoSolo = new THREE.PlaneGeometry(tamanhoSolo, tamanhoSolo, 300, 300); 
+        geoSolo.rotateX(-Math.PI / 2);
+        const vertices = geoSolo.attributes.position;
+        
+        const crateras = [
+            {x: 120, z: -150, r: 110, p: 25}, {x: -180, z: 180, r: 90, p: 19},
+            {x: 40, z: 60, r: 35, p: 11}, {x: -50, z: -60, r: 25, p: 8},
+            {x: 180, z: 100, r: 40, p: 13}, {x: 20, z: -15, r: 9, p: 4},
+            {x: -25, z: 25, r: 12, p: 4.5}, {x: 5, z: -35, r: 7, p: 3},
+            {x: -40, z: -10, r: 15, p: 5.5}
+        ];
+        for(let k=0; k<320; k++) {
+            crateras.push({ x: (Math.random()-0.5)*900, z: (Math.random()-0.5)*900, r: 1.2+Math.random()*5.0, p: 0.3+Math.random()*2.2 });
+        }
+
+        for (let i = 0; i < vertices.count; i++) {
+            let vx = vertices.getX(i); let vz = vertices.getZ(i);
+            let vy = Math.sin(vx * 0.005) * Math.cos(vz * 0.005) * 11;
+            vy += Math.sin(vx * 0.03) * Math.cos(vz * 0.03) * 3.2;
+            vy += Math.sin(vx * 0.15) * Math.cos(vz * 0.15) * 0.55; 
+
+            crateras.forEach(c => {
+                let dx = vx - c.x; let dz = vz - c.z; let dist = Math.sqrt(dx*dx + dz*dz);
+                if (dist < c.r) {
+                    let fat = dist / c.r; 
+                    vy += (-Math.cos(fat * Math.PI / 2) * c.p) + (Math.sin(fat * Math.PI) * (c.p * 0.38) * (1 - fat));
+                }
+            });
+            vertices.setY(i, vy);
+        }
+        geoSolo.computeVertexNormals();
+        
+        const solo = new THREE.Mesh(geoSolo, new THREE.MeshStandardMaterial({ 
+            map: texturaSolo, roughness: 0.98, metalness: 0.02, bumpMap: texturaSolo, bumpScale: 0.22, shadowSide: THREE.DoubleSide 
+        }));
+        solo.receiveShadow = true; solo.castShadow = true;     
+        cena.add(solo);
+
+        function obterAlturaTerreno(x, z) {
+            let vy = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 11;
+            vy += Math.sin(x * 0.03) * Math.cos(z * 0.03) * 3.2;
+            vy += Math.sin(x * 0.15) * Math.cos(z * 0.15) * 0.55;
+
+            crateras.forEach(c => {
+                let dx = x - c.x; let dz = z - c.z; let dist = Math.sqrt(dx*dx + dz*dz);
+                if (dist < c.r) {
+                    let fat = dist / c.r;
+                    vy += (-Math.cos(fat * Math.PI / 2) * c.p) + (Math.sin(fat * Math.PI) * (c.p * 0.38) * (1 - fat));
+                }
+            });
+            return vy;
+        }
+
+        // --- Módulo de Pouso Lunar ---
+        const moduloGrupo = new THREE.Group();
+        const matMetal = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+        const matOuro = new THREE.MeshStandardMaterial({ color: 0xccaa44, metalness: 0.9, roughness: 0.3 });
+        
+        const corpoBase = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.5, 3, 8), matOuro);
+        corpoBase.position.y = 1.5; corpoBase.castShadow = true; moduloGrupo.add(corpoBase);
+
+        const topoBase = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), matMetal);
+        topoBase.position.y = 3.2; topoBase.scale.set(1.1, 0.9, 1.1); topoBase.castShadow = true; moduloGrupo.add(topoBase);
+
+        for(let i=0; i<4; i++) {
+            let angulo = (i * Math.PI / 2) + Math.PI/4;
+            let perna = new THREE.Group();
+            let suporte = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4), matMetal);
+            suporte.rotation.z = 0.5; suporte.position.set(1.5, -0.5, 0); perna.add(suporte);
+            let sapata = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.1, 6), matOuro);
+            sapata.position.set(2.4, -2.2, 0); perna.add(sapata);
+            perna.rotation.y = angulo; moduloGrupo.add(perna);
+        }
+        moduloGrupo.position.set(0, obterAlturaTerreno(0, 0) + 2.2, 0);
+        cena.add(moduloGrupo);
+
+        // --- Construtores de Objetos Coletáveis ---
+        const geoAmostra = new THREE.OctahedronGeometry(0.4, 0);
+        const matAmostra = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+        const geoTanque = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 6);
+        const matTanque = new THREE.MeshStandardMaterial({ color: 0x00a8ff, metalness: 0.6, roughness: 0.2, emissive: 0x0044aa });
+
+        function gerarColetaveis() {
+            listaAmostras.forEach(obj => cena.remove(obj));
+            listaTanques.forEach(obj => cena.remove(obj));
+            listaAmostras = [];
+            listaTanques = [];
+
+            // 10 Fragmentos
+            for(let i=0; i<10; i++) {
+                let ax = (Math.random() - 0.5) * 450 + 15; let az = (Math.random() - 0.5) * 450 + 15;
+                let mesh = new THREE.Mesh(geoAmostra, matAmostra);
+                mesh.position.set(ax, obterAlturaTerreno(ax, az) + 0.5, az);
+                cena.add(mesh); listaAmostras.push(mesh);
+            }
+
+            // 25 Tanques de Oxigênio
+            for(let i=0; i<25; i++) {
+                let tx = (Math.random() - 0.5) * 500; let tz = (Math.random() - 0.5) * 500;
+                let mesh = new THREE.Mesh(geoTanque, matTanque);
+                mesh.position.set(tx, obterAlturaTerreno(tx, tz) + 0.6, tz);
+                cena.add(mesh); listaTanques.push(mesh);
+            }
+        }
+
+        // --- Sistema de Pegadas ---
+        const geoPegada = new THREE.PlaneGeometry(0.3, 0.5); geoPegada.rotateX(-Math.PI/2);
+        const matPegada = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.6, depthWrite: false });
+
+        function spawnPegada(x, z, rY) {
+            let mesh = new THREE.Mesh(geoPegada, matPegada);
+            mesh.position.set(x, obterAlturaTerreno(x, z) + 0.02, z);
+            mesh.rotation.y = rY;
+            cena.add(mesh); listaPegadas.push(mesh);
+            if(listaPegadas.length > 50) { cena.remove(listaPegadas.shift()); }
+        }
+
+        function resetarJogo() {
+            oxigenio = 100;
+            amostrasColetadas = 0;
+            vivo = true;
+            jogoAtivo = true;
+            
+            document.getElementById('contador-amostras').innerText = "0";
+            document.getElementById('barra-oxigenio').style.width = '100%';
+            
+            listaPegadas.forEach(p => cena.remove(p));
+            listaPegadas.length = 0;
+
+            camera.position.set(0, obterAlturaTerreno(0, 20) + 1.75, 20);
+            camera.rotation.set(0, 0, 0);
+            velocidadeY = 0;
+
+            gerarColetaveis();
+
+            telaGameOver.style.display = 'none';
+            controles.lock();
+        }
+
+        gerarColetaveis();
+        camera.position.set(0, obterAlturaTerreno(0, 20) + 1.75, 20);
+
+        // --- Loop Principal ---
+        const alturaOlhos = 1.75; let clock = new THREE.Clock(); let acumuladorPegada = 0;
+
+        function animar() {
+            requestAnimationFrame(animar);
+            let delta = clock.getDelta();
+
+            if (controles.isLocked && vivo) {
+                let pAntigaX = camera.position.x; let pAntigaZ = camera.position.z;
+
+                if (moverFrente) controles.moveForward(VELOCIDADE_ANDAR);
+                if (moverTras) controles.moveForward(-VELOCIDADE_ANDAR);
+                if (moverEsquerda) controles.moveRight(-VELOCIDADE_ANDAR);
+                if (moverDireita) controles.moveRight(VELOCIDADE_ANDAR);
+
+                velocidadeY -= GRAVIDADE; camera.position.y += velocidadeY;
+                let limiteChao = obterAlturaTerreno(camera.position.x, camera.position.z) + alturaOlhos;
+
+                if (camera.position.y <= limiteChao) {
+                    camera.position.y = limiteChao; velocidadeY = 0; noChao = true; 
+                    let distMovida = Math.sqrt(Math.pow(camera.position.x - pAntigaX, 2) + Math.pow(camera.position.z - pAntigaZ, 2));
+                    if(distMovida > 0.05) {
+                        acumuladorPegada += distMovida;
+                        if(acumuladorPegada > 2.2) { spawnPegada(camera.position.x, camera.position.z, camera.rotation.y); acumuladorPegada = 0; }
+                    }
+                }
+
+                // Consumo de Oxigênio
+                oxigenio -= delta * 0.95; 
+                if (oxigenio <= 0) {
+                    oxigenio = 0;
+                    vivo = false;
+                    jogoAtivo = false;
+                    controles.unlock();
+                    document.getElementById('resultado-amostras').innerText = amostrasColetadas;
+                    hud.style.display = 'none';
+                    mira.style.display = 'none';
+                    telaGameOver.style.display = 'flex';
+                }
+                document.getElementById('barra-oxigenio').style.width = oxigenio + '%';
+                
+                if(oxigenio <= 25) {
+                    document.getElementById('alerta-oxi').style.display = 'block';
+                    document.getElementById('barra-oxigenio').style.backgroundColor = '#ff3333';
+                } else {
+                    document.getElementById('alerta-oxi').style.display = 'none';
+                    document.getElementById('barra-oxigenio').style.backgroundColor = '#00e5ff';
+                }
+
+                // Lógica de Proximidade e Interação [E]
+                let proximoDeAlgumItem = false;
+
+                // Cristais
+                for(let i = listaAmostras.length - 1; i >= 0; i--) {
+                    let cristal = listaAmostras[i];
+                    let distancia = camera.position.distanceTo(cristal.position);
+                    
+                    if(distancia < 3.5) {
+                        proximoDeAlgumItem = true;
+                        if(teclaEPressionada) {
+                            cena.remove(cristal); listaAmostras.splice(i, 1);
+                            amostrasColetadas++; 
+                            document.getElementById('contador-amostras').innerText = amostrasColetadas;
+                            teclaEPressionada = false; 
+                        }
+                    }
+                    cristal.rotation.y += 0.02;
+                }
+
+                // Tanques
+                for(let i = listaTanques.length - 1; i >= 0; i--) {
+                    let tanque = listaTanques[i];
+                    let distancia = camera.position.distanceTo(tanque.position);
+                    
+                    if(distancia < 3.5) {
+                        proximoDeAlgumItem = true;
+                        if(teclaEPressionada) {
+                            cena.remove(tanque); listaTanques.splice(i, 1);
+                            oxigenio = Math.min(100, oxigenio + 30);
+                            teclaEPressionada = false;
+                        }
+                    }
+                    tanque.rotation.x += 0.01;
+                }
+
+                promptInteracao.style.display = proximoDeAlgumItem ? 'block' : 'none';
+
+                let distanciaFocal = (camera.position.x * 0.8) + (camera.position.z * -0.3);
+                let fatorBrilho = Math.max(0, distanciaFocal / 150); 
+                luzSol.intensity = INTENSIDADE_SOL_BASE + (fatorBrilho * 1.8);
+                renderizador.toneMappingExposure = 1.2 + (fatorBrilho * 0.25);
+
+                document.getElementById('pos-x').innerText = camera.position.x.toFixed(1);
+                document.getElementById('pos-z').innerText = camera.position.z.toFixed(1);
+                document.getElementById('pos-y').innerText = (camera.position.y - alturaOlhos).toFixed(1);
+            }
+
+            terra.rotation.y += 0.0001;
+            renderizador.render(cena, camera);
+        }
+
+        animar();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderizador.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
