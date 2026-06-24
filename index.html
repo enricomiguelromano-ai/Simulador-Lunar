@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lunar Simulator Pro - Ultimate Mobile Edition</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        /* HUD - Capacete de Astronauta */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 10;
+            border: 20px solid rgba(15, 25, 35, 0.4);
+            box-sizing: border-box;
+            display: none;
+        }
+        #visor-reflexo {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 15%, rgba(0, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 70%);
+        }
+        .telemetria {
+            position: absolute;
+            color: #00e5ff;
+            text-shadow: 0 0 6px rgba(0,229,255,0.6);
+            font-size: 13px;
+            padding: 15px;
+            background: rgba(2, 8, 16, 0.75);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            border-radius: 4px;
+            backdrop-filter: blur(4px);
+        }
+        #telemetria-esquerda { top: 30px; left: 30px; }
+        #telemetria-direita { top: 30px; right: 30px; text-align: right; }
+        
+        .barra-container {
+            width: 150px; height: 10px;
+            background: rgba(255,0,0,0.2);
+            border: 1px solid #ff3333;
+            display: inline-block; margin-left: 10px;
+            vertical-align: middle;
+        }
+        #barra-oxigenio {
+            width: 100%; height: 100%;
+            background: #00e5ff;
+            box-shadow: 0 0 8px #00e5ff;
+            transition: width 0.1s linear;
+        }
+
+        #prompt-interacao {
+            position: absolute;
+            top: 55%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffcc00;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 15px;
+            border: 1px solid #ffcc00;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            z-index: 12;
+            text-shadow: 0 0 4px #ffcc00;
+        }
+
+        /* Telas de Menus e Interfaces Globais */
+        .tela-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 30; backdrop-filter: blur(8px);
+            color: white; text-align: center;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        #tela-start {
+            background: linear-gradient(135deg, rgba(2, 8, 18, 0.98) 0%, rgba(5, 20, 40, 0.95) 100%);
+            border: 4px double #00e5ff;
+        }
+        .btn-menu {
+            background: transparent;
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-family: inherit;
+            cursor: pointer;
+            margin-top: 25px;
+            box-shadow: 0 0 15px rgba(0,229,255,0.2);
+            transition: all 0.3s;
+        }
+        .btn-menu:hover { background: #00e5ff; color: #000; box-shadow: 0 0 25px #00e5ff; }
+
+        #tela-pause { background: rgba(2, 6, 12, 0.85); display: none; }
+        #tela-gameover { background: rgba(30, 0, 0, 0.95); border: 4px double #ff3333; display: none; }
+        #tela-gameover h1 { color: #ff3333; text-shadow: 0 0 15px #ff3333; animation: pulse 1.5s infinite alternate; }
+
+        h1 { font-size: 38px; letter-spacing: 5px; margin-bottom: 10px; font-weight: 400; }
+        .subtitulo { font-size: 14px; color: #ffcc00; margin-bottom: 30px; letter-spacing: 2px; }
+        .painel-ajuda {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 25px; border-radius: 4px;
+            max-width: 500px; text-align: left; line-height: 1.8; font-size: 12px;
+            max-height: 40vh; overflow-y: auto;
+        }
+
+        #mira {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 6px; height: 6px;
+            border: 1px solid rgba(0, 229, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none; z-index: 10;
+            display: none;
+        }
+
+        /* --- BOTAO FULLSCREEN --- */
+        #btn-fullscreen {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 40;
+            background: rgba(2, 8, 16, 0.75);
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,229,255,0.2);
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        #btn-fullscreen:active { background: #00e5ff; color: #000; }
+
+        /* --- CONTROLES VIRTUAIS PARA CELULAR/TABLET --- */
+        #controles-mobile {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 15;
+            display: none;
+        }
+        /* Zona Touch Direita para rotacionar a câmera */
+        #zona-camera {
+            position: absolute;
+            top: 0; right: 0; width: 50vw; height: 100vh;
+            pointer-events: auto;
+        }
+        /* Joystick Esquerdo */
+        #joystick-wrapper {
+            position: absolute;
+            bottom: 30px; left: 40px;
+            width: 100px; height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(0, 229, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        #joystick-pino {
+            width: 40px; height: 40px;
+            background: #00e5ff;
+            box-shadow: 0 0 10px #00e5ff;
+            border-radius: 50%;
+            position: absolute;
+        }
+        /* Botões de Ação Direita */
+        .btn-mobile-acao {
+            position: absolute;
+            width: 55px; height: 55px;
+            border-radius: 50%;
+            background: rgba(2, 8, 16, 0.75);
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            font-family: inherit; font-size: 14px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            pointer-events: auto;
+            box-shadow: 0 0 10px rgba(0,229,255,0.2);
+        }
+        .btn-mobile-acao:active { background: #00e5ff; color: #000; }
+        #btn-mobile-coletar { bottom: 100px; right: 40px; }
+        #btn-mobile-salto { bottom: 30px; right: 110px; }
+        #btn-mobile-lanterna { bottom: 30px; right: 25px; width: 45px; height: 45px; font-size: 11px; border-color: #ff3333; color: #ff3333;}
+        #btn-mobile-pause { top: 20px; left: 50vw; transform: translateX(-50%); width: 70px; height: 30px; border-radius: 4px; font-size: 11px; }
+
+        @keyframes pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.05); opacity: 1; } }
+
+        /* Ajustes de tela na horizontal */
+        @media (max-height: 450px) {
+            h1 { font-size: 24px; margin-bottom: 5px; }
+            .subtitulo { margin-bottom: 10px; font-size: 11px; }
+            .painel-ajuda { font-size: 11px; padding: 15px; }
+            .btn-menu { padding: 10px 30px; font-size: 13px; margin-top: 15px; }
+            #joystick-wrapper { bottom: 20px; left: 20px; width: 90px; height: 90px; }
+            #joystick-pino { width: 36px; height: 36px; }
+            .btn-mobile-acao { width: 50px; height: 50px; font-size: 13px; }
+            #btn-mobile-coletar { bottom: 85px; right: 30px; }
+            #btn-mobile-salto { bottom: 20px; right: 95px; }
+            #btn-mobile-lanterna { bottom: 20px; right: 25px; width: 40px; height: 40px; }
+            .telemetria { font-size: 11px; padding: 8px; }
+            .barra-container { width: 100px; }
+            #btn-fullscreen { top: 10px; right: 10px; padding: 5px 8px; font-size: 10px; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+</head>
+<body>
+
+    <button id="btn-fullscreen">TELA CHEIA</button>
+
+    <div id="tela-start" class="tela-overlay">
+        <h1 style="color: #00e5ff; text-shadow: 0 0 12px #00e5ff;font-size: 50pt;">Pixel Saga</h1>
+        <div class="subtitulo">Lunar Exploration</div>
+        
+        <div class="painel-ajuda">
+            <span style="color: #00e5ff; font-weight: bold;">[MANUAL DE INSTRUÇÕES - PC & MOBILE]</span><br>
+            • <b>W, A, S, D / Joystick Virtual</b> : Controle de propulsão e caminhada<br>
+            • <b>ESPAÇO / Botão [S]</b> : Impulso vertical em baixa gravidade (1.62 m/s²)<br>
+            • <b>TECLA L / Botão [L]</b> : Ligar/Desligar lanterna principal do capacete<br>
+            • <b>TECLA E / Botão [E]</b> : Coletar fragmentos e reabastecer suporte de vida<br>
+            • <b>Arraste o lado direito da tela</b> para olhar ao redor em dispositivos touch.<br><br>
+            <span style="color: #ffcc00; font-weight: bold;">[DIRETRIZES DA MISSÃO]</span><br>
+            Aproxime-se dos cristais amarelos e pressione <b>[E]</b> para coletar amostras geológicas. Monitore constantemente os níveis de O2. Caso o oxigênio chegue a zero, os sistemas biológicos falharão. Recolha os cilindros criogênicos azuis espalhados para injetar oxigênio extra.
+        </div>
+        <button class="btn-menu" id="btn-iniciar">INICIALIZAR MISSÃO</button>
+    </div>
+
+    <div id="tela-pause" class="tela-overlay">
+        <h1 style="color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5);">SISTEMA PAUSADO</h1>
+        <div class="subtitulo" style="color: #00e5ff;">TRAJE EM MODO DE ESPERA</div>
+        <button class="btn-menu" id="btn-retomar">RETOMAR OPERAÇÕES</button>
+    </div>
+
+    <div id="tela-gameover" class="tela-overlay">
+        <h1>SINAIS VITAIS PERDIDOS</h1>
+        <div class="subtitulo">SISTEMA DE OXIGÊNIO ESGOTADO - FALHA CRÍTICA DO TRAJE</div>
+        <div class="painel-ajuda" style="text-align: center; border-color: #ff3333;">
+            Amostras coletadas nesta sessão: <span id="resultado-amostras" style="color: #ffcc00; font-weight: bold; font-size: 16px;">0</span> / 10
+        </div>
+        <button class="btn-menu" id="btn-reiniciar" style="border-color:#ff3333; color:#ff3333; box-shadow: 0 0 15px rgba(255,51,51,0.2);">INICIAR NOVO POUSO</button>
+    </div>
+
+    <div id="hud">
+        <div id="visor-reflexo"></div>
+        <div id="telemetria-esquerda" class="telemetria">
+           
+            <div>X: <span id="pos-x">0.0</span> | Z: <span id="pos-z">0.0</span></div>
+            <div>ALTITUDE: <span id="pos-y">0.0</span> m</div>
+            <div>LANTERNA: <span id="status-lanterna" style="color:#ff3333;">DESLIGADA</span> [L]</div>
+        </div>
+        <div id="telemetria-direita" class="telemetria">
+            <div>AMOSTRAS: <span id="contador-amostras" style="color:#ffcc00; font-weight:bold;">0</span> / 10</div>
+            <div>
+                OXIGÊNIO: <div class="barra-container"><div id="barra-oxigenio"></div></div>
+            </div>
+            <div id="alerta-oxi" style="color:#ff3333; display:none; margin-top:5px; font-weight: bold;">AVISO: OXIGÊNIO CRÍTICO</div>
+        </div>
+    </div>
+
+    <div id="controles-mobile">
+        <div id="zona-camera"></div>
+        <div id="joystick-wrapper">
+            <div id="joystick-pino"></div>
+        </div>
+        <div class="btn-mobile-acao" id="btn-mobile-coletar">E</div>
+        <div class="btn-mobile-acao" id="btn-mobile-salto">S</div>
+        <div class="btn-mobile-acao" id="btn-mobile-lanterna">L</div>
+        <div class="btn-mobile-acao" id="btn-mobile-pause">PAUSE</div>
+    </div>
+
+    <div id="prompt-interacao">Pressione [E] para coletar</div>
+    <div id="mira"></div>
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- Motores Principais ---
+        const container = document.getElementById('canvas-container');
+        const cena = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 6000);
+
+        const renderizador = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderizador.setSize(window.innerWidth, window.innerHeight);
+        renderizador.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderizador.shadowMap.enabled = true;
+        renderizador.shadowMap.type = THREE.PCFSoftShadowMap; 
+        renderizador.toneMapping = THREE.ACESFilmicToneMapping; 
+        renderizador.toneMappingExposure = 1.2; 
+        container.appendChild(renderizador.domElement);
+
+        // --- Logica de Alternar Fullscreen ---
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Erro ao ativar Fullscreen:", err.message);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // --- Gerenciador e Configuração dos Sistemas de Áudio ---
+        const ouvinteAudio = new THREE.AudioListener();
+        camera.add(ouvinteAudio);
+
+        const somMusicaFundo = new THREE.Audio(ouvinteAudio);
+        const somSalto = new THREE.Audio(ouvinteAudio);
+        const somColetaFragmento = new THREE.Audio(ouvinteAudio);
+        const somColetaTanque = new THREE.Audio(ouvinteAudio);
+        const somPassos = new THREE.Audio(ouvinteAudio);
+
+        const carregadorAudio = new THREE.AudioLoader();
+        let audiosInicializados = false;
+
+        function carregarAudiosDoJogo() {
+            if(audiosInicializados) return;
+
+            carregadorAudio.load('sounds/som_fundo_vento.mp3', (buffer) => {
+                somMusicaFundo.setBuffer(buffer);
+                somMusicaFundo.setLoop(true);
+                somMusicaFundo.setVolume(0.4);
+                somMusicaFundo.play();
+            }, undefined, (e) => console.log("Áudio indisponível. Pronto para receber musica_fundo.mp3"));
+
+            carregadorAudio.load('sounds/salto_lua.mp3', (buffer) => {
+                somSalto.setBuffer(buffer);
+                somSalto.setVolume(0.5);
+            });
+
+            carregadorAudio.load('sounds/coletar_fragmento.mp3', (buffer) => {
+                somColetaFragmento.setBuffer(buffer);
+                somColetaFragmento.setVolume(0.6);
+            });
+
+            carregadorAudio.load('sounds/coletar_fragmentos.mp3', (buffer) => {
+                somColetaTanque.setBuffer(buffer);
+                somColetaTanque.setVolume(0.6);
+            });
+
+            carregadorAudio.load('sounds/run.mp3', (buffer) => {
+                somPassos.setBuffer(buffer);
+                somPassos.setLoop(true);
+                somPassos.setVolume(0.3);
+            });
+
+            audiosInicializados = true;
+        }
+
+        // --- Variáveis de Estado e Gameplay ---
+        let oxigenio = 100;
+        let amostrasColetadas = 0;
+        let lanternaLigada = false;
+        let jogoAtivo = false;
+        let vivo = true;
+        let isMobile = false;
+
+        let listaAmostras = [];
+        let listaTanques = [];
+        const listaPegadas = [];
+
+        // --- Controles Base e Configurações ---
+        const controles = new THREE.PointerLockControls(camera, document.body);
+        
+        const telaStart = document.getElementById('tela-start');
+        const telaPause = document.getElementById('tela-pause');
+        const telaGameOver = document.getElementById('tela-gameover');
+        const hud = document.getElementById('hud');
+        const mira = document.getElementById('mira');
+        const promptInteracao = document.getElementById('prompt-interacao');
+        const cMobileUI = document.getElementById('controles-mobile');
+
+        function checarDispositivo() {
+            isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        }
+        checarDispositivo();
+
+        // Eventos dos botões de interface
+        document.getElementById('btn-iniciar').addEventListener('click', () => { 
+            carregarAudiosDoJogo();
+            if(!isMobile) { controles.lock(); } else { alternarModoJogoMobile(); }
+            jogoAtivo = true; 
+        });
+        document.getElementById('btn-retomar').addEventListener('click', () => { 
+            if(!isMobile) controles.lock(); else alternarModoJogoMobile();
+        });
+        document.getElementById('btn-reiniciar').addEventListener('click', () => { 
+            carregarAudiosDoJogo();
+            resetarJogo(); 
+        });
+
+        function alternarModoJogoMobile() {
+            telaStart.style.display = 'none';
+            telaPause.style.display = 'none';
+            telaGameOver.style.display = 'none';
+            hud.style.display = 'block';
+            cMobileUI.style.display = 'block';
+        }
+
+        function abrirMenuPauseMobile() {
+            promptInteracao.style.display = 'none';
+            telaPause.style.display = 'flex';
+            hud.style.display = 'none';
+            cMobileUI.style.display = 'none';
+            if(somPassos.isPlaying) somPassos.stop();
+        }
+
+        controles.addEventListener('lock', () => {
+            if(!vivo || isMobile) return;
+            telaStart.style.display = 'none';
+            telaPause.style.display = 'none';
+            telaGameOver.style.display = 'none';
+            hud.style.display = 'block';
+            mira.style.display = 'block';
+        });
+
+        controles.addEventListener('unlock', () => {
+            if(isMobile) return;
+            promptInteracao.style.display = 'none';
+            if (vivo && jogoAtivo) {
+                telaPause.style.display = 'flex';
+                hud.style.display = 'none';
+                mira.style.display = 'none';
+                if(somPassos.isPlaying) somPassos.stop();
+            }
+        });
+
+        let moverFrente = false, moverTras = false, moverEsquerda = false, moverDireita = false;
+        let noChao = true;
+        let velocidadeY = 0; 
+        const GRAVIDADE = 0.0035;   
+        const FORCA_SALTO = 0.15;   
+        const VELOCIDADE_ANDAR = 0.18;
+
+        // --- SISTEMA TOUCH JOYSTICK E TELA ---
+        const joyWrapper = document.getElementById('joystick-wrapper');
+        const joyPino = document.getElementById('joystick-pino');
+        const zonaCamera = document.getElementById('zona-camera');
+
+        let joyId = null;
+        let joyCentro = { x: 0, y: 0 };
+        let moverX = 0, moverZ = 0;
+
+        joyWrapper.addEventListener('touchstart', (e) => {
+            for(let t of e.changedTouches) {
+                if(joyId === null) {
+                    joyId = t.identifier;
+                    const b = joyWrapper.getBoundingClientRect();
+                    joyCentro.x = b.left + b.width/2;
+                    joyCentro.y = b.top + b.height/2;
+                }
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            for(let t of e.touches) {
+                if(t.identifier === joyId) {
+                    let dx = t.clientX - joyCentro.x;
+                    let dy = t.clientY - joyCentro.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let raioMax = joyWrapper.clientWidth / 2;
+
+                    if(dist > raioMax) {
+                        dx = (dx / dist) * raioMax;
+                        dy = (dy / dist) * raioMax;
+                    }
+                    joyPino.style.transform = `translate(${dx}px, ${dy}px)`;
+                    moverX = dx / raioMax;
+                    moverZ = dy / raioMax;
+                }
+            }
+        });
+
+        window.addEventListener('touchend', (e) => {
+            for(let t of e.changedTouches) {
+                if(t.identifier === joyId) {
+                    joyId = null;
+                    joyPino.style.transform = 'translate(0px, 0px)';
+                    moverX = 0; moverZ = 0;
+                }
+            }
+        });
+
+        // Rotação Direito Touch
+        let camId = null;
+        let pCamAntiga = { x: 0, y: 0 };
+        const sensibilidadeMobile = 0.004;
+
+        zonaCamera.addEventListener('touchstart', (e) => {
+            for(let t of e.changedTouches) {
+                if(camId === null) {
+                    camId = t.identifier;
+                    pCamAntiga.x = t.clientX; pCamAntiga.y = t.clientY;
+                }
+            }
+        });
+        zonaCamera.addEventListener('touchmove', (e) => {
+            for(let t of e.touches) {
+                if(t.identifier === camId) {
+                    let dx = t.clientX - pCamAntiga.x;
+                    let dy = t.clientY - pCamAntiga.y;
+
+                    camera.rotation.y -= dx * sensibilidadeMobile;
+                    camera.rotation.x -= dy * sensibilidadeMobile;
+                    camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));
+
+                    pCamAntiga.x = t.clientX; pCamAntiga.y = t.clientY;
+                }
+            }
+        });
+        zonaCamera.addEventListener('touchend', (e) => {
+            for(let t of e.changedTouches) {
+                if(t.identifier === camId) camId = null;
+            }
+        });
+
+        // Botões Mobile de Ação
+        let teclaEPressionada = false;
+        document.getElementById('btn-mobile-coletar').addEventListener('touchstart', () => { teclaEPressionada = true; });
+        document.getElementById('btn-mobile-coletar').addEventListener('touchend', () => { teclaEPressionada = false; });
+        document.getElementById('btn-mobile-salto').addEventListener('touchstart', () => {
+            if(noChao && vivo) {
+                velocidadeY = FORCA_SALTO; noChao = false;
+                if(somSalto.buffer) somSalto.play();
+            }
+        });
+        document.getElementById('btn-mobile-lanterna').addEventListener('touchstart', () => { alternarLanterna(); });
+        document.getElementById('btn-mobile-pause').addEventListener('touchstart', () => { abrirMenuPauseMobile(); });
+
+        function alternarLanterna() {
+            lanternaLigada = !lanternaLigada;
+            lanterna.intensity = lanternaLigada ? 4.5 : 0;
+            document.getElementById('status-lanterna').innerText = lanternaLigada ? "LIGADA" : "DESLIGADA";
+            document.getElementById('status-lanterna').style.color = lanternaLigada ? "#00e5ff" : "#ff3333";
+            document.getElementById('btn-mobile-lanterna').style.color = lanternaLigada ? "#00e5ff" : "#ff3333";
+            document.getElementById('btn-mobile-lanterna').style.borderColor = lanternaLigada ? "#00e5ff" : "#ff3333";
+        }
+
+        // Teclado PC
+        document.addEventListener('keydown', (e) => {
+            const tecla = e.key.toLowerCase();
+            if(!vivo || isMobile) return;
+            if(tecla === 'w' || e.code === 'KeyW') moverFrente = true;
+            if(tecla === 's' || e.code === 'KeyS') moverTras = true;
+            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = true;
+            if(tecla === 'd' || e.code === 'KeyD') moverDireita = true;
+            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = true;
+            if(tecla === 'l' || e.code === 'KeyL') alternarLanterna();
+            if((e.code === 'Space' || e.key === ' ') && noChao) {
+                velocidadeY = FORCA_SALTO; noChao = false;
+                if(somSalto.buffer) somSalto.play();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const tecla = e.key.toLowerCase();
+            if(tecla === 'w' || e.code === 'KeyW') moverFrente = false;
+            if(tecla === 's' || e.code === 'KeyS') moverTras = false;
+            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = false;
+            if(tecla === 'd' || e.code === 'KeyD') moverDireita = false;
+            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = false;
+        });
+
+        // --- Iluminação Espacial ORIGINAL ---
+        const posicaoSolX = 800, posicaoSolY = 160, posicaoSolZ = -300;
+        const INTENSIDADE_SOL_BASE = 2.8;
+
+        const luzSol = new THREE.DirectionalLight(0xfffaed, INTENSIDADE_SOL_BASE);
+        luzSol.position.set(posicaoSolX, posicaoSolY, posicaoSolZ); 
+        luzSol.castShadow = true;
+        luzSol.shadow.mapSize.width = 4096;
+        luzSol.shadow.mapSize.height = 4096;
+        luzSol.shadow.camera.near = 10;
+        luzSol.shadow.camera.far = 2000;
+        const d = 500;
+        luzSol.shadow.camera.left = -d; luzSol.shadow.camera.right = d;
+        luzSol.shadow.camera.top = d; luzSol.shadow.camera.bottom = -d;
+        luzSol.shadow.bias = -0.0001;
+        luzSol.shadow.radius = 2.0;
+        cena.add(luzSol);
+
+        const luzTerra = new THREE.AmbientLight(0x0e2b66, 0.2); 
+        cena.add(luzTerra);
+
+        // --- LANTERNA DO CAPACETE ---
+        const lanterna = new THREE.SpotLight(0xffffff, 0, 60, Math.PI / 5, 0.5, 1);
+        lanterna.castShadow = true;
+        camera.add(lanterna);
+        lanterna.position.set(0, 0, 0);
+        lanterna.target = new THREE.Object3D();
+        camera.add(lanterna.target);
+        lanterna.target.position.set(0, 0, -1);
+        cena.add(camera);
+
+        // --- SOL ORIGINAL ---
+        const solGrupo = new THREE.Group();
+        solGrupo.position.set(posicaoSolX * 1.5, posicaoSolY * 1.5, posicaoSolZ * 1.5);
+
+        function criarTexturaAuraVolumetrica() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            let gradiente = ctx.createRadialGradient(256, 256, 5, 256, 256, 256);
+            gradiente.addColorStop(0, 'rgba(255, 255, 230, 1)');     
+            gradiente.addColorStop(0.1, 'rgba(255, 235, 120, 0.95)'); 
+            gradiente.addColorStop(0.25, 'rgba(255, 190, 40, 0.6)');  
+            gradiente.addColorStop(0.5, 'rgba(255, 110, 10, 0.18)');  
+            gradiente.addColorStop(1, 'rgba(255, 50, 0, 0)');         
+            ctx.fillStyle = gradiente;
+            ctx.fillRect(0, 0, 512, 512);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const spriteAura = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: criarTexturaAuraVolumetrica(), color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending 
+        }));
+        spriteAura.scale.set(450, 450, 1); 
+        solGrupo.add(spriteAura);
+        cena.add(solGrupo);
+
+        // --- Céu Estrelado ORIGINAL ---
+        const numEstrelas = 3500;
+        const geometriaEstrelas = new THREE.BufferGeometry();
+        const posicoesEstrelas = new Float32Array(numEstrelas * 3);
+        for(let i = 0; i < numEstrelas * 3; i += 3) {
+            const u = Math.random(); const v = Math.random();
+            const theta = u * 2.0 * Math.PI; const phi = Math.acos(2.0 * v - 1.0);
+            const r = 3500; 
+            posicoesEstrelas[i] = r * Math.sin(phi) * Math.cos(theta);
+            posicoesEstrelas[i+1] = r * Math.sin(phi) * Math.sin(theta);
+            posicoesEstrelas[i+2] = r * Math.cos(phi);
+        }
+        geometriaEstrelas.setAttribute('position', new THREE.BufferAttribute(posicoesEstrelas, 3));
+        cena.add(new THREE.Points(geometriaEstrelas, new THREE.PointsMaterial({ color: 0xffffff, size: 1.3, sizeAttenuation: false })));
+
+        // --- Terra ORIGINAL ---
+        function criarTexturaTerraMaisAgua() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048; canvas.height = 1024; const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#061745'; ctx.fillRect(0, 0, 2048, 1024);
+            const dadosImagem = ctx.getImageData(0, 0, 2048, 1024);
+            const pixels = dadosImagem.data;
+
+            function noiseSuave(x, y) {
+                let total = 0;
+                total += Math.sin(x * 3.0) * Math.cos(y * 2.5) * 0.45;
+                total += Math.sin(x * 7.5) * Math.sin(y * 6.0) * 0.25;
+                total += Math.cos(x * 16.0) * Math.cos(y * 14.0) * 0.15;
+                return (total + 1) / 2; 
+            }
+            for (let y = 0; y < 1024; y++) {
+                for (let x = 0; x < 2048; x++) {
+                    let nx = (x / 2048) * Math.PI * 6; let ny = (y / 1024) * Math.PI * 3;
+                    let valorNoise = noiseSuave(nx, ny);
+                    let inf = 0.05; 
+                    if (x > 350 && x < 650) inf += 0.12;  
+                    if (x > 1200 && x < 1650) inf += 0.14; 
+                    if (valorNoise + inf > 0.76) {
+                        let idx = (y * 2048 + x) * 4;
+                        pixels[idx] = 20; pixels[idx+1] = 130 + Math.floor(valorNoise * 60); pixels[idx+2] = 25; 
+                    }
+                }
+            }
+            ctx.putImageData(dadosImagem, 0, 0);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const terra = new THREE.Mesh(new THREE.SphereGeometry(240, 64, 64), new THREE.MeshStandardMaterial({ 
+            map: criarTexturaTerraMaisAgua(), roughness: 0.55, metalness: 0.12
+        }));
+        terra.position.set(-360, 70, -560); 
+        terra.rotation.z = 0.45; 
+        cena.add(terra);
+
+        // --- Textura do Solo Lunar ORIGINAL ---
+        function criarTexturaRegolitoComplexa() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048; canvas.height = 2048; const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#444444'; ctx.fillRect(0, 0, 2048, 2048);
+            
+            for (let i = 0; i < 800000; i++) {
+                let x = Math.random() * 2048; let y = Math.random() * 2048;
+                let tamanho = Math.random() * 1.5; let lum = Math.random() * 40 - 20;
+                ctx.fillStyle = `rgba(${68+lum}, ${68+lum}, ${68+lum}, 0.85)`;
+                ctx.fillRect(x, y, tamanho, tamanho);
+            }
+            for (let i = 0; i < 8000; i++) {
+                let x = Math.random() * 2048; let y = Math.random() * 2048;
+                let tamanho = 2 + Math.random() * 6; let tomEscuro = Math.random() * 30;
+                ctx.fillStyle = `rgba(${30+tomEscuro}, ${30+tomEscuro}, ${30+tomEscuro}, 0.4)`;
+                ctx.beginPath(); ctx.arc(x, y, tamanho, 0, Math.PI * 2); ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+        const texturaSolo = criarTexturaRegolitoComplexa();
+        texturaSolo.wrapS = THREE.RepeatWrapping; texturaSolo.wrapT = THREE.RepeatWrapping;
+        texturaSolo.repeat.set(30, 30); 
+
+        // --- Terreno Lunar com Crateras ORIGINAL ---
+        const tamanhoSolo = 1000;
+        const geoSolo = new THREE.PlaneGeometry(tamanhoSolo, tamanhoSolo, 300, 300); 
+        geoSolo.rotateX(-Math.PI / 2);
+        const vertices = geoSolo.attributes.position;
+        
+        const crateras = [
+            {x: 120, z: -150, r: 110, p: 25}, {x: -180, z: 180, r: 90, p: 19},
+            {x: 40, z: 60, r: 35, p: 11}, {x: -50, z: -60, r: 25, p: 8},
+            {x: 180, z: 100, r: 40, p: 13}, {x: 20, z: -15, r: 9, p: 4},
+            {x: -25, z: 25, r: 12, p: 4.5}, {x: 5, z: -35, r: 7, p: 3},
+            {x: -40, z: -10, r: 15, p: 5.5}
+        ];
+        for(let k=0; k<320; k++) {
+            crateras.push({ x: (Math.random()-0.5)*900, z: (Math.random()-0.5)*900, r: 1.2+Math.random()*5.0, p: 0.3+Math.random()*2.2 });
+        }
+
+        for (let i = 0; i < vertices.count; i++) {
+            let vx = vertices.getX(i); let vz = vertices.getZ(i);
+            let vy = Math.sin(vx * 0.005) * Math.cos(vz * 0.005) * 11;
+            vy += Math.sin(vx * 0.03) * Math.cos(vz * 0.03) * 3.2;
+            vy += Math.sin(vx * 0.15) * Math.cos(vz * 0.15) * 0.55; 
+
+            crateras.forEach(c => {
+                let dx = vx - c.x; let dz = vz - c.z; let dist = Math.sqrt(dx*dx + dz*dz);
+                if (dist < c.r) {
+                    let fat = dist / c.r; 
+                    vy += (-Math.cos(fat * Math.PI / 2) * c.p) + (Math.sin(fat * Math.PI) * (c.p * 0.38) * (1 - fat));
+                }
+            });
+            vertices.setY(i, vy);
+        }
+        geoSolo.computeVertexNormals();
+        
+        const solo = new THREE.Mesh(geoSolo, new THREE.MeshStandardMaterial({ 
+            map: texturaSolo, roughness: 0.98, metalness: 0.02, bumpMap: texturaSolo, bumpScale: 0.22, shadowSide: THREE.DoubleSide 
+        }));
+        solo.receiveShadow = true; solo.castShadow = true;     
+        cena.add(solo);
+
+        function obterAlturaTerreno(x, z) {
+            let vy = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 11;
+            vy += Math.sin(x * 0.03) * Math.cos(z * 0.03) * 3.2;
+            vy += Math.sin(x * 0.15) * Math.cos(z * 0.15) * 0.55;
+
+            crateras.forEach(c => {
+                let dx = x - c.x; let dz = z - c.z; let dist = Math.sqrt(dx*dx + dz*dz);
+                if (dist < c.r) {
+                    let fat = dist / c.r;
+                    vy += (-Math.cos(fat * Math.PI / 2) * c.p) + (Math.sin(fat * Math.PI) * (c.p * 0.38) * (1 - fat));
+                }
+            });
+            return vy;
+        }
+
+        // --- Módulo de Pouso Lunar ORIGINAL ---
+        const moduloGrupo = new THREE.Group();
+        const matMetal = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+        const matOuro = new THREE.MeshStandardMaterial({ color: 0xccaa44, metalness: 0.9, roughness: 0.3 });
+        
+        const corpoBase = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.5, 3, 8), matOuro);
+        corpoBase.position.y = 1.5; corpoBase.castShadow = true; moduloGrupo.add(corpoBase);
+
+        const topoBase = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), matMetal);
+        topoBase.position.y = 3.2; topoBase.scale.set(1.1, 0.9, 1.1); topoBase.castShadow = true; moduloGrupo.add(topoBase);
+
+        for(let i=0; i<4; i++) {
+            let angulo = (i * Math.PI / 2) + Math.PI/4;
+            let perna = new THREE.Group();
+            let suporte = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4), matMetal);
+            suporte.rotation.z = 0.5; suporte.position.set(1.5, -0.5, 0); perna.add(suporte);
+            let sapata = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.1, 6), matOuro);
+            sapata.position.set(2.4, -2.2, 0); perna.add(sapata);
+            perna.rotation.y = angulo; moduloGrupo.add(perna);
+        }
+        moduloGrupo.position.set(0, obterAlturaTerreno(0, 0) + 2.2, 0);
+        cena.add(moduloGrupo);
+
+        // --- Construtores de Objetos Coletáveis ORIGINAL ---
+        const geoAmostra = new THREE.OctahedronGeometry(0.4, 0);
+        const matAmostra = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+        const geoTanque = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 6);
+        const matTanque = new THREE.MeshStandardMaterial({ color: 0x00a8ff, metalness: 0.6, roughness: 0.2, emissive: 0x0044aa });
+
+        function gerarColetaveis() {
+            listaAmostras.forEach(obj => cena.remove(obj));
+            listaTanques.forEach(obj => cena.remove(obj));
+            listaAmostras = [];
+            listaTanques = [];
+
+            for(let i=0; i<10; i++) {
+                let ax = (Math.random() - 0.5) * 450 + 15; let az = (Math.random() - 0.5) * 450 + 15;
+                let mesh = new THREE.Mesh(geoAmostra, matAmostra);
+                mesh.position.set(ax, obterAlturaTerreno(ax, az) + 0.5, az);
+                cena.add(mesh); listaAmostras.push(mesh);
+            }
+
+            for(let i=0; i<25; i++) {
+                let tx = (Math.random() - 0.5) * 500; let tz = (Math.random() - 0.5) * 500;
+                let mesh = new THREE.Mesh(geoTanque, matTanque);
+                mesh.position.set(tx, obterAlturaTerreno(tx, tz) + 0.6, tz);
+                cena.add(mesh); listaTanques.push(mesh);
+            }
+        }
+
+        // --- Sistema de Pegadas ---
+        const geoPegada = new THREE.PlaneGeometry(0.3, 0.5); geoPegada.rotateX(-Math.PI/2);
+        const matPegada = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.6, depthWrite: false });
+
+        function spawnPegada(x, z, rY) {
+            let mesh = new THREE.Mesh(geoPegada, matPegada);
+            mesh.position.set(x, obterAlturaTerreno(x, z) + 0.02, z);
+            mesh.rotation.y = rY;
+            cena.add(mesh); listaPegadas.push(mesh);
+            if(listaPegadas.length > 50) { cena.remove(listaPegadas.shift()); }
+        }
+
+        function resetarJogo() {
+            oxigenio = 100;
+            amostrasColetadas = 0;
+            vivo = true;
+            jogoAtivo = true;
+            
+            document.getElementById('contador-amostras').innerText = "0";
+            document.getElementById('barra-oxigenio').style.width = '100%';
+            
+            listaPegadas.forEach(p => cena.remove(p));
+            listaPegadas.length = 0;
+
+            camera.position.set(0, obterAlturaTerreno(0, 20) + 1.75, 20);
+            camera.rotation.set(0, 0, 0);
+            velocidadeY = 0; moverX = 0; moverZ = 0;
+
+            gerarColetaveis();
+
+            telaGameOver.style.display = 'none';
+            if(!isMobile) controles.lock(); else alternarModoJogoMobile();
+        }
+
+        gerarColetaveis();
+        camera.position.set(0, obterAlturaTerreno(0, 20) + 1.75, 20);
+
+        // --- Loop Principal ---
+        const alturaOlhos = 1.75; let clock = new THREE.Clock(); let acumuladorPegada = 0;
+
+        function animar() {
+            requestAnimationFrame(animar);
+            let delta = clock.getDelta();
+
+            const rodandoControles = isMobile ? (hud.style.display === 'block') : controles.isLocked;
+
+            if (rodandoControles && vivo) {
+                let pAntigaX = camera.position.x; let pAntigaZ = camera.position.z;
+
+                let andando = false;
+
+                // Movimentação Mobile por matrizes angulares
+                if (isMobile && (moverX !== 0 || moverZ !== 0)) {
+                    andando = true;
+                    let direcaoFrente = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    direcaoFrente.y = 0; direcaoFrente.normalize();
+                    let direcaoLado = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    direcaoLado.y = 0; direcaoLado.normalize();
+
+                    camera.position.addScaledVector(direcaoFrente, -moverZ * VELOCIDADE_ANDAR);
+                    camera.position.addScaledVector(direcaoLado, moverX * VELOCIDADE_ANDAR);
+                } 
+                // Movimentação Teclado Desktop
+                else {
+                    if (moverFrente) { controles.moveForward(VELOCIDADE_ANDAR); andando = true; }
+                    if (moverTras) { controles.moveForward(-VELOCIDADE_ANDAR); andando = true; }
+                    if (moverEsquerda) { controles.moveRight(-VELOCIDADE_ANDAR); andando = true; }
+                    if (moverDireita) { controles.moveRight(VELOCIDADE_ANDAR); andando = true; }
+                }
+
+                // Gatilhos de áudio de passos
+                if(andando && noChao) {
+                    if(somPassos.buffer && !somPassos.isPlaying) somPassos.play();
+                } else {
+                    if(somPassos.isPlaying) somPassos.stop();
+                }
+
+                velocidadeY -= GRAVIDADE; camera.position.y += velocidadeY;
+                let limiteChao = obterAlturaTerreno(camera.position.x, camera.position.z) + alturaOlhos;
+
+                if (camera.position.y <= limiteChao) {
+                    camera.position.y = limiteChao; velocidadeY = 0; noChao = true; 
+                    let distMovida = Math.sqrt(Math.pow(camera.position.x - pAntigaX, 2) + Math.pow(camera.position.z - pAntigaZ, 2));
+                    if(distMovida > 0.05) {
+                        acumuladorPegada += distMovida;
+                        if(acumuladorPegada > 2.2) { spawnPegada(camera.position.x, camera.position.z, camera.rotation.y); acumuladorPegada = 0; }
+                    }
+                }
+
+                // Consumo de Oxigênio
+                oxigenio -= delta * 0.95; 
+                if (oxigenio <= 0) {
+                    oxigenio = 0; vivo = false; jogoAtivo = false;
+                    if(!isMobile) controles.unlock();
+                    document.getElementById('resultado-amostras').innerText = amostrasColetadas;
+                    hud.style.display = 'none'; cMobileUI.style.display = 'none'; mira.style.display = 'none';
+                    telaGameOver.style.display = 'flex';
+                    if(somPassos.isPlaying) somPassos.stop();
+                }
+                document.getElementById('barra-oxigenio').style.width = oxigenio + '%';
+                
+                if(oxigenio <= 25) {
+                    document.getElementById('alerta-oxi').style.display = 'block';
+                    document.getElementById('barra-oxigenio').style.backgroundColor = '#ff3333';
+                } else {
+                    document.getElementById('alerta-oxi').style.display = 'none';
+                    document.getElementById('barra-oxigenio').style.backgroundColor = '#00e5ff';
+                }
+
+                // Lógica de Proximidade e Interação [E]
+                let proximoDeAlgumItem = false;
+
+                // Cristais
+                for(let i = listaAmostras.length - 1; i >= 0; i--) {
+                    let cristal = listaAmostras[i];
+                    let distancia = camera.position.distanceTo(cristal.position);
+                    
+                    if(distancia < 3.5) {
+                        proximoDeAlgumItem = true;
+                        if(teclaEPressionada) {
+                            cena.remove(cristal); listaAmostras.splice(i, 1);
+                            amostrasColetadas++; 
+                            document.getElementById('contador-amostras').innerText = amostrasColetadas;
+                            teclaEPressionada = false; 
+                            if(somColetaFragmento.buffer) { if(somColetaFragmento.isPlaying) somColetaFragmento.stop(); somColetaFragmento.play(); }
+                        }
+                    }
+                    cristal.rotation.y += 0.02;
+                }
+
+                // Tanques
+                for(let i = listaTanques.length - 1; i >= 0; i--) {
+                    let tanque = listaTanques[i];
+                    let distancia = camera.position.distanceTo(tanque.position);
+                    
+                    if(distancia < 3.5) {
+                        proximoDeAlgumItem = true;
+                        if(teclaEPressionada) {
+                            cena.remove(tanque); listaTanques.splice(i, 1);
+                            oxigenio = Math.min(100, oxigenio + 30);
+                            teclaEPressionada = false;
+                            if(somColetaTanque.buffer) { if(somColetaTanque.isPlaying) somColetaTanque.stop(); somColetaTanque.play(); }
+                        }
+                    }
+                    tanque.rotation.x += 0.01;
+                }
+
+                promptInteracao.style.display = proximoDeAlgumItem ? 'block' : 'none';
+
+                let distanciaFocal = (camera.position.x * 0.8) + (camera.position.z * -0.3);
+                let fatorBrilho = Math.max(0, distanciaFocal / 150); 
+                luzSol.intensity = INTENSIDADE_SOL_BASE + (fatorBrilho * 1.8);
+                renderizador.toneMappingExposure = 1.2 + (fatorBrilho * 0.25);
+
+                document.getElementById('pos-x').innerText = camera.position.x.toFixed(1);
+                document.getElementById('pos-z').innerText = camera.position.z.toFixed(1);
+                document.getElementById('pos-y').innerText = (camera.position.y - alturaOlhos).toFixed(1);
+            }
+
+            terra.rotation.y += 0.0001;
+            renderizador.render(cena, camera);
+        }
+
+        animar();
+
+        window.addEventListener('resize', () => {
+            checarDispositivo();
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderizador.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
