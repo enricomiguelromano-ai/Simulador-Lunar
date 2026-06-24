@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunar Simulator Pro - Ultimate Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lunar Simulator Pro - Ultimate Mobile Edition</title>
     <style>
         body {
             margin: 0;
@@ -11,6 +11,8 @@
             background-color: #000;
             font-family: 'Courier New', Courier, monospace;
             user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
         }
         #canvas-container {
             width: 100vw;
@@ -59,7 +61,6 @@
             transition: width 0.1s linear;
         }
 
-        /* Indicador de interação centralizado */
         #prompt-interacao {
             position: absolute;
             top: 55%; left: 50%;
@@ -84,9 +85,9 @@
             z-index: 30; backdrop-filter: blur(8px);
             color: white; text-align: center;
             box-sizing: border-box;
+            padding: 20px;
         }
 
-        /* 1. Tela de Start Detalhada */
         #tela-start {
             background: linear-gradient(135deg, rgba(2, 8, 18, 0.98) 0%, rgba(5, 20, 40, 0.95) 100%);
             border: 4px double #00e5ff;
@@ -103,29 +104,11 @@
             box-shadow: 0 0 15px rgba(0,229,255,0.2);
             transition: all 0.3s;
         }
-        .btn-menu:hover {
-            background: #00e5ff;
-            color: #000;
-            box-shadow: 0 0 25px #00e5ff;
-        }
+        .btn-menu:hover { background: #00e5ff; color: #000; box-shadow: 0 0 25px #00e5ff; }
 
-        /* 2. Menu de Pause (ESC) */
-        #tela-pause {
-            background: rgba(2, 6, 12, 0.85);
-            display: none;
-        }
-
-        /* 3. Tela de Game Over */
-        #tela-gameover {
-            background: rgba(30, 0, 0, 0.95);
-            border: 4px double #ff3333;
-            display: none;
-        }
-        #tela-gameover h1 {
-            color: #ff3333;
-            text-shadow: 0 0 15px #ff3333;
-            animation: pulse 1.5s infinite alternate;
-        }
+        #tela-pause { background: rgba(2, 6, 12, 0.85); display: none; }
+        #tela-gameover { background: rgba(30, 0, 0, 0.95); border: 4px double #ff3333; display: none; }
+        #tela-gameover h1 { color: #ff3333; text-shadow: 0 0 15px #ff3333; animation: pulse 1.5s infinite alternate; }
 
         h1 { font-size: 38px; letter-spacing: 5px; margin-bottom: 10px; font-weight: 400; }
         .subtitulo { font-size: 14px; color: #ffcc00; margin-bottom: 30px; letter-spacing: 2px; }
@@ -134,6 +117,7 @@
             border: 1px solid rgba(255,255,255,0.2);
             padding: 25px; border-radius: 4px;
             max-width: 500px; text-align: left; line-height: 1.8; font-size: 12px;
+            max-height: 40vh; overflow-y: auto;
         }
 
         #mira {
@@ -147,9 +131,95 @@
             display: none;
         }
 
-        @keyframes pulse {
-            from { transform: scale(1); opacity: 0.9; }
-            to { transform: scale(1.05); opacity: 1; }
+        /* --- BOTAO FULLSCREEN --- */
+        #btn-fullscreen {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 40;
+            background: rgba(2, 8, 16, 0.75);
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,229,255,0.2);
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        #btn-fullscreen:active { background: #00e5ff; color: #000; }
+
+        /* --- CONTROLES VIRTUAIS PARA CELULAR/TABLET --- */
+        #controles-mobile {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 15;
+            display: none;
+        }
+        /* Zona Touch Direita para rotacionar a câmera */
+        #zona-camera {
+            position: absolute;
+            top: 0; right: 0; width: 50vw; height: 100vh;
+            pointer-events: auto;
+        }
+        /* Joystick Esquerdo */
+        #joystick-wrapper {
+            position: absolute;
+            bottom: 30px; left: 40px;
+            width: 100px; height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(0, 229, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        #joystick-pino {
+            width: 40px; height: 40px;
+            background: #00e5ff;
+            box-shadow: 0 0 10px #00e5ff;
+            border-radius: 50%;
+            position: absolute;
+        }
+        /* Botões de Ação Direita */
+        .btn-mobile-acao {
+            position: absolute;
+            width: 55px; height: 55px;
+            border-radius: 50%;
+            background: rgba(2, 8, 16, 0.75);
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            font-family: inherit; font-size: 14px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            pointer-events: auto;
+            box-shadow: 0 0 10px rgba(0,229,255,0.2);
+        }
+        .btn-mobile-acao:active { background: #00e5ff; color: #000; }
+        #btn-mobile-coletar { bottom: 100px; right: 40px; }
+        #btn-mobile-salto { bottom: 30px; right: 110px; }
+        #btn-mobile-lanterna { bottom: 30px; right: 25px; width: 45px; height: 45px; font-size: 11px; border-color: #ff3333; color: #ff3333;}
+        #btn-mobile-pause { top: 20px; left: 50vw; transform: translateX(-50%); width: 70px; height: 30px; border-radius: 4px; font-size: 11px; }
+
+        @keyframes pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.05); opacity: 1; } }
+
+        /* Ajustes de tela na horizontal */
+        @media (max-height: 450px) {
+            h1 { font-size: 24px; margin-bottom: 5px; }
+            .subtitulo { margin-bottom: 10px; font-size: 11px; }
+            .painel-ajuda { font-size: 11px; padding: 15px; }
+            .btn-menu { padding: 10px 30px; font-size: 13px; margin-top: 15px; }
+            #joystick-wrapper { bottom: 20px; left: 20px; width: 90px; height: 90px; }
+            #joystick-pino { width: 36px; height: 36px; }
+            .btn-mobile-acao { width: 50px; height: 50px; font-size: 13px; }
+            #btn-mobile-coletar { bottom: 85px; right: 30px; }
+            #btn-mobile-salto { bottom: 20px; right: 95px; }
+            #btn-mobile-lanterna { bottom: 20px; right: 25px; width: 40px; height: 40px; }
+            .telemetria { font-size: 11px; padding: 8px; }
+            .barra-container { width: 100px; }
+            #btn-fullscreen { top: 10px; right: 10px; padding: 5px 8px; font-size: 10px; }
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -157,16 +227,19 @@
 </head>
 <body>
 
+    <button id="btn-fullscreen">TELA CHEIA</button>
+
     <div id="tela-start" class="tela-overlay">
-        <h1 style="color: #00e5ff; text-shadow: 0 0 12px #00e5ff;">LUNAR SIMULATOR PRO</h1>
-        <div class="subtitulo">PROGRAMA DE RECONHECIMENTO EXTRAVEICULAR (EVA)</div>
+        <h1 style="color: #00e5ff; text-shadow: 0 0 12px #00e5ff;font-size: 50pt;">Pixel Saga</h1>
+        <div class="subtitulo">Lunar Exploration</div>
         
         <div class="painel-ajuda">
-            <span style="color: #00e5ff; font-weight: bold;">[MANUAL DE SISTEMAS DO TRAJE]</span><br>
-            • <b>W, A, S, D</b> : Controle de propulsão e caminhada<br>
-            • <b>ESPAÇO</b> : Impulso vertical em baixa gravidade (1.62 m/s²)<br>
-            • <b>TECLA L</b> : Ligar/Desligar lanterna principal do capacete<br>
-            • <b>TECLA E</b> : Coletar fragmentos e reabastecer suporte de vida<br><br>
+            <span style="color: #00e5ff; font-weight: bold;">[MANUAL DE INSTRUÇÕES - PC & MOBILE]</span><br>
+            • <b>W, A, S, D / Joystick Virtual</b> : Controle de propulsão e caminhada<br>
+            • <b>ESPAÇO / Botão [S]</b> : Impulso vertical em baixa gravidade (1.62 m/s²)<br>
+            • <b>TECLA L / Botão [L]</b> : Ligar/Desligar lanterna principal do capacete<br>
+            • <b>TECLA E / Botão [E]</b> : Coletar fragmentos e reabastecer suporte de vida<br>
+            • <b>Arraste o lado direito da tela</b> para olhar ao redor em dispositivos touch.<br><br>
             <span style="color: #ffcc00; font-weight: bold;">[DIRETRIZES DA MISSÃO]</span><br>
             Aproxime-se dos cristais amarelos e pressione <b>[E]</b> para coletar amostras geológicas. Monitore constantemente os níveis de O2. Caso o oxigênio chegue a zero, os sistemas biológicos falharão. Recolha os cilindros criogênicos azuis espalhados para injetar oxigênio extra.
         </div>
@@ -191,7 +264,7 @@
     <div id="hud">
         <div id="visor-reflexo"></div>
         <div id="telemetria-esquerda" class="telemetria">
-            <div>SISTEMA: EVAMOD-v4.8</div>
+           
             <div>X: <span id="pos-x">0.0</span> | Z: <span id="pos-z">0.0</span></div>
             <div>ALTITUDE: <span id="pos-y">0.0</span> m</div>
             <div>LANTERNA: <span id="status-lanterna" style="color:#ff3333;">DESLIGADA</span> [L]</div>
@@ -199,10 +272,21 @@
         <div id="telemetria-direita" class="telemetria">
             <div>AMOSTRAS: <span id="contador-amostras" style="color:#ffcc00; font-weight:bold;">0</span> / 10</div>
             <div>
-                OXI: <div class="barra-container"><div id="barra-oxigenio"></div></div>
+                OXIGÊNIO: <div class="barra-container"><div id="barra-oxigenio"></div></div>
             </div>
-            <div id="alerta-oxi" style="color:#ff3333; display:none; margin-top:5px; font-weight: bold;">AVISO: OXI CRÍTICO</div>
+            <div id="alerta-oxi" style="color:#ff3333; display:none; margin-top:5px; font-weight: bold;">AVISO: OXIGÊNIO CRÍTICO</div>
         </div>
+    </div>
+
+    <div id="controles-mobile">
+        <div id="zona-camera"></div>
+        <div id="joystick-wrapper">
+            <div id="joystick-pino"></div>
+        </div>
+        <div class="btn-mobile-acao" id="btn-mobile-coletar">E</div>
+        <div class="btn-mobile-acao" id="btn-mobile-salto">S</div>
+        <div class="btn-mobile-acao" id="btn-mobile-lanterna">L</div>
+        <div class="btn-mobile-acao" id="btn-mobile-pause">PAUSE</div>
     </div>
 
     <div id="prompt-interacao">Pressione [E] para coletar</div>
@@ -213,7 +297,6 @@
         // --- Motores Principais ---
         const container = document.getElementById('canvas-container');
         const cena = new THREE.Scene();
-        
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 6000);
 
         const renderizador = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -225,18 +308,77 @@
         renderizador.toneMappingExposure = 1.2; 
         container.appendChild(renderizador.domElement);
 
+        // --- Logica de Alternar Fullscreen ---
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Erro ao ativar Fullscreen:", err.message);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // --- Gerenciador e Configuração dos Sistemas de Áudio ---
+        const ouvinteAudio = new THREE.AudioListener();
+        camera.add(ouvinteAudio);
+
+        const somMusicaFundo = new THREE.Audio(ouvinteAudio);
+        const somSalto = new THREE.Audio(ouvinteAudio);
+        const somColetaFragmento = new THREE.Audio(ouvinteAudio);
+        const somColetaTanque = new THREE.Audio(ouvinteAudio);
+        const somPassos = new THREE.Audio(ouvinteAudio);
+
+        const carregadorAudio = new THREE.AudioLoader();
+        let audiosInicializados = false;
+
+        function carregarAudiosDoJogo() {
+            if(audiosInicializados) return;
+
+            carregadorAudio.load('sounds/som_fundo_vento.mp3', (buffer) => {
+                somMusicaFundo.setBuffer(buffer);
+                somMusicaFundo.setLoop(true);
+                somMusicaFundo.setVolume(0.4);
+                somMusicaFundo.play();
+            }, undefined, (e) => console.log("Áudio indisponível. Pronto para receber musica_fundo.mp3"));
+
+            carregadorAudio.load('sounds/salto_lua.mp3', (buffer) => {
+                somSalto.setBuffer(buffer);
+                somSalto.setVolume(0.5);
+            });
+
+            carregadorAudio.load('sounds/coletar_fragmento.mp3', (buffer) => {
+                somColetaFragmento.setBuffer(buffer);
+                somColetaFragmento.setVolume(0.6);
+            });
+
+            carregadorAudio.load('sounds/coletar_fragmentos.mp3', (buffer) => {
+                somColetaTanque.setBuffer(buffer);
+                somColetaTanque.setVolume(0.6);
+            });
+
+            carregadorAudio.load('sounds/run.mp3', (buffer) => {
+                somPassos.setBuffer(buffer);
+                somPassos.setLoop(true);
+                somPassos.setVolume(0.3);
+            });
+
+            audiosInicializados = true;
+        }
+
         // --- Variáveis de Estado e Gameplay ---
         let oxigenio = 100;
         let amostrasColetadas = 0;
         let lanternaLigada = false;
         let jogoAtivo = false;
         let vivo = true;
+        let isMobile = false;
 
         let listaAmostras = [];
         let listaTanques = [];
         const listaPegadas = [];
 
-        // --- Controles ---
+        // --- Controles Base e Configurações ---
         const controles = new THREE.PointerLockControls(camera, document.body);
         
         const telaStart = document.getElementById('tela-start');
@@ -245,14 +387,45 @@
         const hud = document.getElementById('hud');
         const mira = document.getElementById('mira');
         const promptInteracao = document.getElementById('prompt-interacao');
+        const cMobileUI = document.getElementById('controles-mobile');
+
+        function checarDispositivo() {
+            isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        }
+        checarDispositivo();
 
         // Eventos dos botões de interface
-        document.getElementById('btn-iniciar').addEventListener('click', () => { controles.lock(); jogoAtivo = true; });
-        document.getElementById('btn-retomar').addEventListener('click', () => { controles.lock(); });
-        document.getElementById('btn-reiniciar').addEventListener('click', () => { resetarJogo(); });
+        document.getElementById('btn-iniciar').addEventListener('click', () => { 
+            carregarAudiosDoJogo();
+            if(!isMobile) { controles.lock(); } else { alternarModoJogoMobile(); }
+            jogoAtivo = true; 
+        });
+        document.getElementById('btn-retomar').addEventListener('click', () => { 
+            if(!isMobile) controles.lock(); else alternarModoJogoMobile();
+        });
+        document.getElementById('btn-reiniciar').addEventListener('click', () => { 
+            carregarAudiosDoJogo();
+            resetarJogo(); 
+        });
+
+        function alternarModoJogoMobile() {
+            telaStart.style.display = 'none';
+            telaPause.style.display = 'none';
+            telaGameOver.style.display = 'none';
+            hud.style.display = 'block';
+            cMobileUI.style.display = 'block';
+        }
+
+        function abrirMenuPauseMobile() {
+            promptInteracao.style.display = 'none';
+            telaPause.style.display = 'flex';
+            hud.style.display = 'none';
+            cMobileUI.style.display = 'none';
+            if(somPassos.isPlaying) somPassos.stop();
+        }
 
         controles.addEventListener('lock', () => {
-            if(!vivo) return;
+            if(!vivo || isMobile) return;
             telaStart.style.display = 'none';
             telaPause.style.display = 'none';
             telaGameOver.style.display = 'none';
@@ -261,11 +434,13 @@
         });
 
         controles.addEventListener('unlock', () => {
+            if(isMobile) return;
             promptInteracao.style.display = 'none';
             if (vivo && jogoAtivo) {
                 telaPause.style.display = 'flex';
                 hud.style.display = 'none';
                 mira.style.display = 'none';
+                if(somPassos.isPlaying) somPassos.stop();
             }
         });
 
@@ -276,7 +451,136 @@
         const FORCA_SALTO = 0.15;   
         const VELOCIDADE_ANDAR = 0.18;
 
-        // --- Iluminação Espacial Original ---
+        // --- SISTEMA TOUCH JOYSTICK E TELA ---
+        const joyWrapper = document.getElementById('joystick-wrapper');
+        const joyPino = document.getElementById('joystick-pino');
+        const zonaCamera = document.getElementById('zona-camera');
+
+        let joyId = null;
+        let joyCentro = { x: 0, y: 0 };
+        let moverX = 0, moverZ = 0;
+
+        joyWrapper.addEventListener('touchstart', (e) => {
+            for(let t of e.changedTouches) {
+                if(joyId === null) {
+                    joyId = t.identifier;
+                    const b = joyWrapper.getBoundingClientRect();
+                    joyCentro.x = b.left + b.width/2;
+                    joyCentro.y = b.top + b.height/2;
+                }
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            for(let t of e.touches) {
+                if(t.identifier === joyId) {
+                    let dx = t.clientX - joyCentro.x;
+                    let dy = t.clientY - joyCentro.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let raioMax = joyWrapper.clientWidth / 2;
+
+                    if(dist > raioMax) {
+                        dx = (dx / dist) * raioMax;
+                        dy = (dy / dist) * raioMax;
+                    }
+                    joyPino.style.transform = `translate(${dx}px, ${dy}px)`;
+                    moverX = dx / raioMax;
+                    moverZ = dy / raioMax;
+                }
+            }
+        });
+
+        window.addEventListener('touchend', (e) => {
+            for(let t of e.changedTouches) {
+                if(t.identifier === joyId) {
+                    joyId = null;
+                    joyPino.style.transform = 'translate(0px, 0px)';
+                    moverX = 0; moverZ = 0;
+                }
+            }
+        });
+
+        // Rotação Direito Touch
+        let camId = null;
+        let pCamAntiga = { x: 0, y: 0 };
+        const sensibilidadeMobile = 0.004;
+
+        zonaCamera.addEventListener('touchstart', (e) => {
+            for(let t of e.changedTouches) {
+                if(camId === null) {
+                    camId = t.identifier;
+                    pCamAntiga.x = t.clientX; pCamAntiga.y = t.clientY;
+                }
+            }
+        });
+        zonaCamera.addEventListener('touchmove', (e) => {
+            for(let t of e.touches) {
+                if(t.identifier === camId) {
+                    let dx = t.clientX - pCamAntiga.x;
+                    let dy = t.clientY - pCamAntiga.y;
+
+                    camera.rotation.y -= dx * sensibilidadeMobile;
+                    camera.rotation.x -= dy * sensibilidadeMobile;
+                    camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));
+
+                    pCamAntiga.x = t.clientX; pCamAntiga.y = t.clientY;
+                }
+            }
+        });
+        zonaCamera.addEventListener('touchend', (e) => {
+            for(let t of e.changedTouches) {
+                if(t.identifier === camId) camId = null;
+            }
+        });
+
+        // Botões Mobile de Ação
+        let teclaEPressionada = false;
+        document.getElementById('btn-mobile-coletar').addEventListener('touchstart', () => { teclaEPressionada = true; });
+        document.getElementById('btn-mobile-coletar').addEventListener('touchend', () => { teclaEPressionada = false; });
+        document.getElementById('btn-mobile-salto').addEventListener('touchstart', () => {
+            if(noChao && vivo) {
+                velocidadeY = FORCA_SALTO; noChao = false;
+                if(somSalto.buffer) somSalto.play();
+            }
+        });
+        document.getElementById('btn-mobile-lanterna').addEventListener('touchstart', () => { alternarLanterna(); });
+        document.getElementById('btn-mobile-pause').addEventListener('touchstart', () => { abrirMenuPauseMobile(); });
+
+        function alternarLanterna() {
+            lanternaLigada = !lanternaLigada;
+            lanterna.intensity = lanternaLigada ? 4.5 : 0;
+            document.getElementById('status-lanterna').innerText = lanternaLigada ? "LIGADA" : "DESLIGADA";
+            document.getElementById('status-lanterna').style.color = lanternaLigada ? "#00e5ff" : "#ff3333";
+            document.getElementById('btn-mobile-lanterna').style.color = lanternaLigada ? "#00e5ff" : "#ff3333";
+            document.getElementById('btn-mobile-lanterna').style.borderColor = lanternaLigada ? "#00e5ff" : "#ff3333";
+        }
+
+        // Teclado PC
+        document.addEventListener('keydown', (e) => {
+            const tecla = e.key.toLowerCase();
+            if(!vivo || isMobile) return;
+            if(tecla === 'w' || e.code === 'KeyW') moverFrente = true;
+            if(tecla === 's' || e.code === 'KeyS') moverTras = true;
+            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = true;
+            if(tecla === 'd' || e.code === 'KeyD') moverDireita = true;
+            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = true;
+            if(tecla === 'l' || e.code === 'KeyL') alternarLanterna();
+            if((e.code === 'Space' || e.key === ' ') && noChao) {
+                velocidadeY = FORCA_SALTO; noChao = false;
+                if(somSalto.buffer) somSalto.play();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const tecla = e.key.toLowerCase();
+            if(tecla === 'w' || e.code === 'KeyW') moverFrente = false;
+            if(tecla === 's' || e.code === 'KeyS') moverTras = false;
+            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = false;
+            if(tecla === 'd' || e.code === 'KeyD') moverDireita = false;
+            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = false;
+        });
+
+        // --- Iluminação Espacial ORIGINAL ---
         const posicaoSolX = 800, posicaoSolY = 160, posicaoSolZ = -300;
         const INTENSIDADE_SOL_BASE = 2.8;
 
@@ -307,38 +611,7 @@
         lanterna.target.position.set(0, 0, -1);
         cena.add(camera);
 
-        // Interação por Teclado
-        let teclaEPressionada = false;
-        document.addEventListener('keydown', (e) => {
-            const tecla = e.key.toLowerCase();
-            if(!vivo) return;
-            if(tecla === 'w' || e.code === 'KeyW') moverFrente = true;
-            if(tecla === 's' || e.code === 'KeyS') moverTras = true;
-            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = true;
-            if(tecla === 'd' || e.code === 'KeyD') moverDireita = true;
-            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = true;
-            if(tecla === 'l' || e.code === 'KeyL') {
-                lanternaLigada = !lanternaLigada;
-                lanterna.intensity = lanternaLigada ? 4.5 : 0;
-                document.getElementById('status-lanterna').innerText = lanternaLigada ? "LIGADA" : "DESLIGADA";
-                document.getElementById('status-lanterna').style.color = lanternaLigada ? "#00e5ff" : "#ff3333";
-            }
-            if((e.code === 'Space' || e.key === ' ') && noChao) {
-                velocidadeY = FORCA_SALTO;
-                noChao = false;
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            const tecla = e.key.toLowerCase();
-            if(tecla === 'w' || e.code === 'KeyW') moverFrente = false;
-            if(tecla === 's' || e.code === 'KeyS') moverTras = false;
-            if(tecla === 'a' || e.code === 'KeyA') moverEsquerda = false;
-            if(tecla === 'd' || e.code === 'KeyD') moverDireita = false;
-            if(tecla === 'e' || e.code === 'KeyE') teclaEPressionada = false;
-        });
-
-        // --- SOL ---
+        // --- SOL ORIGINAL ---
         const solGrupo = new THREE.Group();
         solGrupo.position.set(posicaoSolX * 1.5, posicaoSolY * 1.5, posicaoSolZ * 1.5);
 
@@ -364,7 +637,7 @@
         solGrupo.add(spriteAura);
         cena.add(solGrupo);
 
-        // --- Céu Estrelado ---
+        // --- Céu Estrelado ORIGINAL ---
         const numEstrelas = 3500;
         const geometriaEstrelas = new THREE.BufferGeometry();
         const posicoesEstrelas = new Float32Array(numEstrelas * 3);
@@ -379,7 +652,7 @@
         geometriaEstrelas.setAttribute('position', new THREE.BufferAttribute(posicoesEstrelas, 3));
         cena.add(new THREE.Points(geometriaEstrelas, new THREE.PointsMaterial({ color: 0xffffff, size: 1.3, sizeAttenuation: false })));
 
-        // --- Terra ---
+        // --- Terra ORIGINAL ---
         function criarTexturaTerraMaisAgua() {
             const canvas = document.createElement('canvas');
             canvas.width = 2048; canvas.height = 1024; const ctx = canvas.getContext('2d');
@@ -418,7 +691,7 @@
         terra.rotation.z = 0.45; 
         cena.add(terra);
 
-        // --- Textura do Solo Lunar Ultra-Realista ---
+        // --- Textura do Solo Lunar ORIGINAL ---
         function criarTexturaRegolitoComplexa() {
             const canvas = document.createElement('canvas');
             canvas.width = 2048; canvas.height = 2048; const ctx = canvas.getContext('2d');
@@ -442,7 +715,7 @@
         texturaSolo.wrapS = THREE.RepeatWrapping; texturaSolo.wrapT = THREE.RepeatWrapping;
         texturaSolo.repeat.set(30, 30); 
 
-        // --- Terreno Lunar com Crateras ---
+        // --- Terreno Lunar com Crateras ORIGINAL ---
         const tamanhoSolo = 1000;
         const geoSolo = new THREE.PlaneGeometry(tamanhoSolo, tamanhoSolo, 300, 300); 
         geoSolo.rotateX(-Math.PI / 2);
@@ -497,7 +770,7 @@
             return vy;
         }
 
-        // --- Módulo de Pouso Lunar ---
+        // --- Módulo de Pouso Lunar ORIGINAL ---
         const moduloGrupo = new THREE.Group();
         const matMetal = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
         const matOuro = new THREE.MeshStandardMaterial({ color: 0xccaa44, metalness: 0.9, roughness: 0.3 });
@@ -520,7 +793,7 @@
         moduloGrupo.position.set(0, obterAlturaTerreno(0, 0) + 2.2, 0);
         cena.add(moduloGrupo);
 
-        // --- Construtores de Objetos Coletáveis ---
+        // --- Construtores de Objetos Coletáveis ORIGINAL ---
         const geoAmostra = new THREE.OctahedronGeometry(0.4, 0);
         const matAmostra = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
         const geoTanque = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 6);
@@ -532,7 +805,6 @@
             listaAmostras = [];
             listaTanques = [];
 
-            // 10 Fragmentos
             for(let i=0; i<10; i++) {
                 let ax = (Math.random() - 0.5) * 450 + 15; let az = (Math.random() - 0.5) * 450 + 15;
                 let mesh = new THREE.Mesh(geoAmostra, matAmostra);
@@ -540,7 +812,6 @@
                 cena.add(mesh); listaAmostras.push(mesh);
             }
 
-            // 25 Tanques de Oxigênio
             for(let i=0; i<25; i++) {
                 let tx = (Math.random() - 0.5) * 500; let tz = (Math.random() - 0.5) * 500;
                 let mesh = new THREE.Mesh(geoTanque, matTanque);
@@ -575,12 +846,12 @@
 
             camera.position.set(0, obterAlturaTerreno(0, 20) + 1.75, 20);
             camera.rotation.set(0, 0, 0);
-            velocidadeY = 0;
+            velocidadeY = 0; moverX = 0; moverZ = 0;
 
             gerarColetaveis();
 
             telaGameOver.style.display = 'none';
-            controles.lock();
+            if(!isMobile) controles.lock(); else alternarModoJogoMobile();
         }
 
         gerarColetaveis();
@@ -593,13 +864,38 @@
             requestAnimationFrame(animar);
             let delta = clock.getDelta();
 
-            if (controles.isLocked && vivo) {
+            const rodandoControles = isMobile ? (hud.style.display === 'block') : controles.isLocked;
+
+            if (rodandoControles && vivo) {
                 let pAntigaX = camera.position.x; let pAntigaZ = camera.position.z;
 
-                if (moverFrente) controles.moveForward(VELOCIDADE_ANDAR);
-                if (moverTras) controles.moveForward(-VELOCIDADE_ANDAR);
-                if (moverEsquerda) controles.moveRight(-VELOCIDADE_ANDAR);
-                if (moverDireita) controles.moveRight(VELOCIDADE_ANDAR);
+                let andando = false;
+
+                // Movimentação Mobile por matrizes angulares
+                if (isMobile && (moverX !== 0 || moverZ !== 0)) {
+                    andando = true;
+                    let direcaoFrente = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    direcaoFrente.y = 0; direcaoFrente.normalize();
+                    let direcaoLado = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    direcaoLado.y = 0; direcaoLado.normalize();
+
+                    camera.position.addScaledVector(direcaoFrente, -moverZ * VELOCIDADE_ANDAR);
+                    camera.position.addScaledVector(direcaoLado, moverX * VELOCIDADE_ANDAR);
+                } 
+                // Movimentação Teclado Desktop
+                else {
+                    if (moverFrente) { controles.moveForward(VELOCIDADE_ANDAR); andando = true; }
+                    if (moverTras) { controles.moveForward(-VELOCIDADE_ANDAR); andando = true; }
+                    if (moverEsquerda) { controles.moveRight(-VELOCIDADE_ANDAR); andando = true; }
+                    if (moverDireita) { controles.moveRight(VELOCIDADE_ANDAR); andando = true; }
+                }
+
+                // Gatilhos de áudio de passos
+                if(andando && noChao) {
+                    if(somPassos.buffer && !somPassos.isPlaying) somPassos.play();
+                } else {
+                    if(somPassos.isPlaying) somPassos.stop();
+                }
 
                 velocidadeY -= GRAVIDADE; camera.position.y += velocidadeY;
                 let limiteChao = obterAlturaTerreno(camera.position.x, camera.position.z) + alturaOlhos;
@@ -616,14 +912,12 @@
                 // Consumo de Oxigênio
                 oxigenio -= delta * 0.95; 
                 if (oxigenio <= 0) {
-                    oxigenio = 0;
-                    vivo = false;
-                    jogoAtivo = false;
-                    controles.unlock();
+                    oxigenio = 0; vivo = false; jogoAtivo = false;
+                    if(!isMobile) controles.unlock();
                     document.getElementById('resultado-amostras').innerText = amostrasColetadas;
-                    hud.style.display = 'none';
-                    mira.style.display = 'none';
+                    hud.style.display = 'none'; cMobileUI.style.display = 'none'; mira.style.display = 'none';
                     telaGameOver.style.display = 'flex';
+                    if(somPassos.isPlaying) somPassos.stop();
                 }
                 document.getElementById('barra-oxigenio').style.width = oxigenio + '%';
                 
@@ -650,6 +944,7 @@
                             amostrasColetadas++; 
                             document.getElementById('contador-amostras').innerText = amostrasColetadas;
                             teclaEPressionada = false; 
+                            if(somColetaFragmento.buffer) { if(somColetaFragmento.isPlaying) somColetaFragmento.stop(); somColetaFragmento.play(); }
                         }
                     }
                     cristal.rotation.y += 0.02;
@@ -666,6 +961,7 @@
                             cena.remove(tanque); listaTanques.splice(i, 1);
                             oxigenio = Math.min(100, oxigenio + 30);
                             teclaEPressionada = false;
+                            if(somColetaTanque.buffer) { if(somColetaTanque.isPlaying) somColetaTanque.stop(); somColetaTanque.play(); }
                         }
                     }
                     tanque.rotation.x += 0.01;
@@ -690,6 +986,7 @@
         animar();
 
         window.addEventListener('resize', () => {
+            checarDispositivo();
             camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
             renderizador.setSize(window.innerWidth, window.innerHeight);
         });
